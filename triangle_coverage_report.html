@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triangle Coverage Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Be+Vietnam+Pro:wght@300;400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --pass: #3fb950;
+    --pass-bg: #0d1117;
+    --fail: #f85149;
+    --accent: #58a6ff;
+    --accent2: #d2a8ff;
+    --warn: #e3b341;
+    --stmt: #79c0ff;
+    --branch: #ffa657;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px 24px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header .badge {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* COVERAGE GAUGES */
+  .gauges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .gauge-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gauge-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .gauge-card.stmt::before { background: var(--stmt); }
+  .gauge-card.branch::before { background: var(--branch); }
+
+  .gauge-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .gauge-number {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .gauge-card.stmt .gauge-number { color: var(--stmt); }
+  .gauge-card.branch .gauge-number { color: var(--branch); }
+
+  .gauge-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .stmt .progress-fill { background: var(--stmt); width: 100%; }
+  .branch .progress-fill { background: var(--branch); width: 100%; }
+
+  /* SECTION */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .section-body { padding: 20px; }
+
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .tag-pass { background: #0d2b0f; color: var(--pass); border: 1px solid #1a4d1f; }
+  .tag-fail { background: #2d0b08; color: var(--fail); border: 1px solid #5a1e1a; }
+  .tag-stmt { background: #0c2040; color: var(--stmt); border: 1px solid #1a4080; }
+  .tag-branch { background: #2d1900; color: var(--branch); border: 1px solid #5a3300; }
+  .tag-covered { background: #0d2b0f; color: var(--pass); border: 1px solid #1a4d1f; }
+  .tag-miss { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* COVERAGE MATRIX */
+  .matrix-wrap { overflow-x: auto; }
+
+  .matrix-table th, .matrix-table td {
+    text-align: center;
+    padding: 8px 6px;
+    min-width: 36px;
+  }
+
+  .matrix-table td:first-child {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    min-width: 60px;
+  }
+
+  .cell-hit { color: var(--pass); font-size: 15px; }
+  .cell-miss { color: var(--surface2); font-size: 15px; }
+  .cell-na { color: var(--muted); font-size: 12px; }
+
+  .total-row td {
+    background: var(--surface2);
+    font-weight: 700;
+    border-top: 2px solid var(--border);
+  }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  .code-line { display: flex; gap: 12px; }
+  .code-line:hover { background: var(--surface2); border-radius: 3px; }
+  .line-no { color: var(--muted); user-select: none; min-width: 24px; text-align: right; }
+  .line-code { color: var(--text); }
+  .line-code .kw { color: #ff7b72; }
+  .line-code .str { color: #a5d6ff; }
+  .line-code .type { color: var(--accent2); }
+  .line-code .fn { color: #d2a8ff; }
+  .line-code .cmt { color: var(--muted); font-style: italic; }
+
+  .covered-line { border-left: 3px solid var(--pass); padding-left: 8px; }
+  .stmt-label {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: #0d2b0f;
+    color: var(--pass);
+    border: 1px solid #1a4d1f;
+  }
+  .br-label {
+    margin-left: 4px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: #2d1900;
+    color: var(--branch);
+    border: 1px solid #5a3300;
+  }
+
+  /* ANALYSIS CARDS */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .analysis-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .analysis-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .analysis-card ul {
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .analysis-card ul li {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .analysis-card ul li:last-child { border-bottom: none; }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+  .dot-pass { background: var(--pass); }
+  .dot-branch { background: var(--branch); }
+  .dot-accent { background: var(--accent); }
+
+  .conclusion {
+    background: linear-gradient(135deg, #0d1f0d 0%, #0d1117 100%);
+    border: 1px solid #1a4d1f;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .conclusion-icon { font-size: 32px; }
+
+  .conclusion-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--pass);
+    margin-bottom: 4px;
+  }
+
+  .conclusion-text { font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 600px) {
+    .gauges, .analysis-grid { grid-template-columns: 1fr; }
+    .gauge-number { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="badge">WHITE-BOX TESTING · JAVA · JUNIT 4</div>
+  <h1>Triangle.<span>classify()</span> Coverage Report</h1>
+  <p class="subtitle">Statement Coverage &amp; Branch Coverage · Basis Path Method</p>
+</div>
+
+<!-- GAUGES -->
+<div class="gauges">
+  <div class="gauge-card stmt">
+    <div class="gauge-label">Statement Coverage</div>
+    <div class="gauge-number">100%</div>
+    <div class="gauge-sub">9 / 9 statements</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div class="gauge-card branch">
+    <div class="gauge-label">Branch Coverage</div>
+    <div class="gauge-number">100%</div>
+    <div class="gauge-sub">8 / 8 branches</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+</div>
+
+<!-- TEST RESULTS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#0d2b0f;">✅</div>
+    <div class="section-title">Kết quả chạy kiểm thử (12 test cases)</div>
+  </div>
+  <div class="section-body" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>TC#</th>
+          <th>Input (a,b,c)</th>
+          <th>Expected</th>
+          <th>Actual</th>
+          <th>Result</th>
+          <th>Statements</th>
+          <th>Branches</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">TC01</td>
+          <td class="mono">(0, 3, 3)</td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1, S2</td>
+          <td class="mono" style="font-size:11px;">BR1(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC01b</td>
+          <td class="mono">(3, -1, 3)</td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1, S2</td>
+          <td class="mono" style="font-size:11px;">BR1(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC01c</td>
+          <td class="mono">(3, 3, -5)</td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-stmt">Invalid</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1, S2</td>
+          <td class="mono" style="font-size:11px;">BR1(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC02</td>
+          <td class="mono">(1, 2, 5)</td>
+          <td><span class="tag tag-branch">Not a triangle</span></td>
+          <td><span class="tag tag-branch">Not a triangle</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1, S3, S4</td>
+          <td class="mono" style="font-size:11px;">BR2(F), BR3(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC02b</td>
+          <td class="mono">(3, 4, 7)</td>
+          <td><span class="tag tag-branch">Not a triangle</span></td>
+          <td><span class="tag tag-branch">Not a triangle</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1, S3, S4</td>
+          <td class="mono" style="font-size:11px;">BR2(F), BR3(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC03</td>
+          <td class="mono">(3, 3, 3)</td>
+          <td><span class="tag tag-covered">Equilateral</span></td>
+          <td><span class="tag tag-covered">Equilateral</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S6</td>
+          <td class="mono" style="font-size:11px;">BR2(F), BR4(F), BR5(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC03b</td>
+          <td class="mono">(100,100,100)</td>
+          <td><span class="tag tag-covered">Equilateral</span></td>
+          <td><span class="tag tag-covered">Equilateral</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S6</td>
+          <td class="mono" style="font-size:11px;">BR2(F), BR4(F), BR5(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC04</td>
+          <td class="mono">(3, 3, 4)</td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S7,S8</td>
+          <td class="mono" style="font-size:11px;">BR2(F),BR4(F),BR6(F),BR7(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC04b</td>
+          <td class="mono">(4, 3, 3)</td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S7,S8</td>
+          <td class="mono" style="font-size:11px;">BR2(F),BR4(F),BR6(F),BR7(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC04c</td>
+          <td class="mono">(5, 3, 5)</td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-covered">Isosceles</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S7,S8</td>
+          <td class="mono" style="font-size:11px;">BR2(F),BR4(F),BR6(F),BR7(T)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC05</td>
+          <td class="mono">(3, 4, 5)</td>
+          <td><span class="tag tag-covered">Scalene</span></td>
+          <td><span class="tag tag-covered">Scalene</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S7,S9</td>
+          <td class="mono" style="font-size:11px;">BR2(F),BR4(F),BR6(F),BR8(F)</td>
+        </tr>
+        <tr>
+          <td class="mono">TC05b</td>
+          <td class="mono">(5, 6, 7)</td>
+          <td><span class="tag tag-covered">Scalene</span></td>
+          <td><span class="tag tag-covered">Scalene</span></td>
+          <td><span class="tag tag-pass">PASS</span></td>
+          <td class="mono" style="font-size:11px;">S1,S3,S5,S7,S9</td>
+          <td class="mono" style="font-size:11px;">BR2(F),BR4(F),BR6(F),BR8(F)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SOURCE CODE ANNOTATED -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#0c2040;">🔍</div>
+    <div class="section-title">Mã nguồn – Coverage Annotation</div>
+  </div>
+  <div class="section-body">
+    <div class="code-block">
+      <div class="code-line covered-line">
+        <span class="line-no">1</span>
+        <span class="line-code"><span class="kw">public static</span> <span class="type">String</span> <span class="fn">classify</span>(<span class="kw">int</span> a, <span class="kw">int</span> b, <span class="kw">int</span> c) {</span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">2</span>
+        <span class="line-code"><span class="kw">  if</span> (a &lt;= 0 || b &lt;= 0 || c &lt;= 0) {<span class="stmt-label">S1</span><span class="br-label">BR1(T) BR2(F)</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">3</span>
+        <span class="line-code"><span class="kw">    return</span> <span class="str">"Invalid"</span>; <span class="stmt-label">S2</span><span class="cmt"> ← TC01, TC01b, TC01c</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">4</span>
+        <span class="line-code">  }</span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">5</span>
+        <span class="line-code"><span class="kw">  if</span> (a+b &lt;= c || a+c &lt;= b || b+c &lt;= a) {<span class="stmt-label">S3</span><span class="br-label">BR3(T) BR4(F)</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">6</span>
+        <span class="line-code"><span class="kw">    return</span> <span class="str">"Not a triangle"</span>; <span class="stmt-label">S4</span><span class="cmt"> ← TC02, TC02b</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">7</span>
+        <span class="line-code">  }</span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">8</span>
+        <span class="line-code"><span class="kw">  if</span> (a == b && b == c) {<span class="stmt-label">S5</span><span class="br-label">BR5(T) BR6(F)</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">9</span>
+        <span class="line-code"><span class="kw">    return</span> <span class="str">"Equilateral"</span>; <span class="stmt-label">S6</span><span class="cmt"> ← TC03, TC03b</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">10</span>
+        <span class="line-code">  } <span class="kw">else if</span> (a == b || b == c || a == c) {<span class="stmt-label">S7</span><span class="br-label">BR7(T) BR8(F)</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">11</span>
+        <span class="line-code"><span class="kw">    return</span> <span class="str">"Isosceles"</span>; <span class="stmt-label">S8</span><span class="cmt"> ← TC04, TC04b, TC04c</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">12</span>
+        <span class="line-code">  } <span class="kw">else</span> {</span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">13</span>
+        <span class="line-code"><span class="kw">    return</span> <span class="str">"Scalene"</span>; <span class="stmt-label">S9</span><span class="cmt"> ← TC05, TC05b</span></span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">14</span>
+        <span class="line-code">  }</span>
+      </div>
+      <div class="code-line covered-line">
+        <span class="line-no">15</span>
+        <span class="line-code">}</span>
+      </div>
+    </div>
+    <p style="margin-top:12px; font-size:12px; color:var(--muted);">
+      <span style="display:inline-block; width:12px; height:12px; background:var(--pass); border-radius:2px; vertical-align:middle; margin-right:4px;"></span>
+      Tất cả dòng được đánh dấu <strong style="color:var(--pass)">xanh</strong> = được thực thi ít nhất 1 lần.
+    </p>
+  </div>
+</div>
+
+<!-- COVERAGE MATRIX -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#2d1900;">📊</div>
+    <div class="section-title">Coverage Matrix – Statements</div>
+  </div>
+  <div class="section-body" style="padding:0;">
+    <div class="matrix-wrap">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>TC</th>
+            <th>S1</th><th>S2</th><th>S3</th><th>S4</th>
+            <th>S5</th><th>S6</th><th>S7</th><th>S8</th><th>S9</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>TC01</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">22%</td>
+          </tr>
+          <tr>
+            <td>TC02</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">33%</td>
+          </tr>
+          <tr>
+            <td>TC03</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">44%</td>
+          </tr>
+          <tr>
+            <td>TC04</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">56%</td>
+          </tr>
+          <tr>
+            <td>TC05</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td style="color:var(--muted);font-size:11px;">56%</td>
+          </tr>
+          <tr class="total-row">
+            <td>∑ TOTAL</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td style="color:var(--pass); font-weight:800;">100%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#2d1900;">🌿</div>
+    <div class="section-title">Coverage Matrix – Branches</div>
+  </div>
+  <div class="section-body" style="padding:0;">
+    <div class="matrix-wrap">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>TC</th>
+            <th>BR1(T)</th><th>BR2(F)</th><th>BR3(T)</th><th>BR4(F)</th>
+            <th>BR5(T)</th><th>BR6(F)</th><th>BR7(T)</th><th>BR8(F)</th>
+            <th>n/8</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>TC01</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">1/8</td>
+          </tr>
+          <tr>
+            <td>TC02</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">2/8</td>
+          </tr>
+          <tr>
+            <td>TC03</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td class="cell-na">–</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">3/8</td>
+          </tr>
+          <tr>
+            <td>TC04</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-na">–</td>
+            <td style="color:var(--muted);font-size:11px;">4/8</td>
+          </tr>
+          <tr>
+            <td>TC05</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td class="cell-na">–</td><td class="cell-hit">✔</td>
+            <td style="color:var(--muted);font-size:11px;">4/8</td>
+          </tr>
+          <tr class="total-row">
+            <td>∑ TOTAL</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td class="cell-hit">✔</td><td class="cell-hit">✔</td>
+            <td style="color:var(--pass); font-weight:800;">8/8</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYSIS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:#1a1a00;">🔬</div>
+    <div class="section-title">Phân tích kết quả Coverage</div>
+  </div>
+  <div class="section-body">
+    <div class="analysis-grid">
+      <div class="analysis-card">
+        <h4><span style="color:var(--stmt)">●</span> Vì sao đạt 100% Statement Coverage?</h4>
+        <ul>
+          <li><span class="dot dot-pass"></span>TC01 kích hoạt S1→TRUE→S2: nhánh "Invalid"</li>
+          <li><span class="dot dot-pass"></span>TC02 kích hoạt S3→TRUE→S4: nhánh "Not a triangle"</li>
+          <li><span class="dot dot-pass"></span>TC03 kích hoạt S5→TRUE→S6: nhánh "Equilateral"</li>
+          <li><span class="dot dot-pass"></span>TC04 kích hoạt S7→TRUE→S8: nhánh "Isosceles"</li>
+          <li><span class="dot dot-pass"></span>TC05 kích hoạt S7→FALSE→S9: nhánh "Scalene"</li>
+          <li><span class="dot dot-pass"></span>5 TC gốc đủ cover 9/9 statements. TC bổ sung (01b,01c,02b...) tăng độ vững chắc</li>
+        </ul>
+      </div>
+      <div class="analysis-card">
+        <h4><span style="color:var(--branch)">●</span> Vì sao đạt 100% Branch Coverage?</h4>
+        <ul>
+          <li><span class="dot dot-branch"></span>BR1(T) + BR2(F): TC01 (T) và TC02 (F) — cả 2 chiều</li>
+          <li><span class="dot dot-branch"></span>BR3(T) + BR4(F): TC02 (T) và TC03 (F) — cả 2 chiều</li>
+          <li><span class="dot dot-branch"></span>BR5(T) + BR6(F): TC03 (T) và TC04 (F) — cả 2 chiều</li>
+          <li><span class="dot dot-branch"></span>BR7(T) + BR8(F): TC04 (T) và TC05 (F) — cả 2 chiều</li>
+          <li><span class="dot dot-branch"></span>Mỗi điều kiện if/else đều có ít nhất 1 TC đi qua nhánh TRUE và 1 TC đi qua FALSE</li>
+        </ul>
+      </div>
+      <div class="analysis-card">
+        <h4><span style="color:var(--accent)">●</span> Branch Coverage ⊃ Statement Coverage</h4>
+        <ul>
+          <li><span class="dot dot-accent"></span>Branch Coverage là tiêu chí <strong>mạnh hơn</strong> Statement Coverage</li>
+          <li><span class="dot dot-accent"></span>Bộ test đạt 100% Branch tự động đảm bảo 100% Statement</li>
+          <li><span class="dot dot-accent"></span>Điều ngược lại <strong>không đúng</strong>: có thể đạt 100% Statement mà không đạt 100% Branch</li>
+          <li><span class="dot dot-accent"></span>Ví dụ: chỉ TC01 → đạt S1,S2 nhưng bỏ qua BR2(F)</li>
+        </ul>
+      </div>
+      <div class="analysis-card">
+        <h4><span style="color:var(--warn)">●</span> Hạn chế & Điểm cần lưu ý</h4>
+        <ul>
+          <li><span class="dot" style="background:var(--warn)"></span>100% Branch Coverage không đảm bảo phát hiện tất cả lỗi</li>
+          <li><span class="dot" style="background:var(--warn)"></span>Chưa test tổ hợp điều kiện phức tạp (MC/DC Coverage)</li>
+          <li><span class="dot" style="background:var(--warn)"></span>Chưa test giá trị biên của bất đẳng thức (a+b=c+1)</li>
+          <li><span class="dot" style="background:var(--warn)"></span>Chưa test overflow số nguyên (a=MAX_INT)</li>
+          <li><span class="dot" style="background:var(--warn)"></span>Mutation testing sẽ cho thấy độ "mạnh" thực sự của bộ test</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONCLUSION -->
+<div class="conclusion">
+  <div class="conclusion-icon">🎯</div>
+  <div>
+    <div class="conclusion-title">Kết luận: Bộ test đạt 100% Statement & Branch Coverage</div>
+    <div class="conclusion-text">
+      5 test case cốt lõi (TC01→TC05) theo Basis Path Method đủ để cover toàn bộ 9 statements và 8 branches.
+      7 test case bổ sung (TC01b,c | TC02b | TC03b | TC04b,c | TC05b) tăng độ tin cậy và kiểm tra nhiều biến thể input hơn.
+      Tổng cộng 12 test cases, <strong style="color:var(--pass)">12/12 PASS</strong>.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
