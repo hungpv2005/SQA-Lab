@@ -329,7 +329,7 @@ Triangle.classify(Integer.MAX_VALUE, 1, 1);   // kết quả không xác định
 Triangle.classify(Integer.MAX_VALUE, Integer.MAX_VALUE, 1);
 ```
 
-> ⚠️ Đây là **lỗ hổng tiềm ẩn** trong code hiện tại — phép `a + b` có thể bị overflow với `int`, dẫn đến kết quả sai. Cần sử dụng `long` hoặc kiểm tra overflow nếu muốn code production-ready.
+>  Đây là **lỗ hổng tiềm ẩn** trong code hiện tại — phép `a + b` có thể bị overflow với `int`, dẫn đến kết quả sai. Cần sử dụng `long` hoặc kiểm tra overflow nếu muốn code production-ready.
 
 ---
 
