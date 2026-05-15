@@ -1,11 +1,5 @@
 # Lab: White-Box Testing – Chương trình Triangle
 
-**Môn học:** Kiểm thử phần mềm  
-**Phương pháp:** White-Box Testing · Basis Path Method  
-**Công cụ:** Java · JUnit 4 · JaCoCo
-
----
-
 ## 1. Chương trình cần kiểm thử
 
 ```java
